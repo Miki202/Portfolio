@@ -1,0 +1,780 @@
+---
+title: "Курсов проект по Приложна статистика на тема Анализ на Goodreads Dataset"
+author: "Mihaela Paparinova"
+date: "2024-06-07"
+output:
+  html_document: default
+encoding: "UTF-8"
+---
+
+# Курсов проект по Приложна статистика
+
+# на тема
+
+# *Анализ на Goodreads Dataset*
+
+# на Михаела Папаринова, сп."Анализ на данни", курc II, ФН: 8MI0200032
+
+### Въведение
+
+Goodreads Dataset, предоставен от Soumik (<https://www.kaggle.com/datasets/jealousleopard/goodreadsbooks>), е изчерпателен списък от характеристики на книги от платформата Goodreads, която е собственост на Amazon. Колекцията включва информация за книги, автори, издателства и рецензии.
+
+### Анализ
+
+1.  Инсталиране на нужните библиотеки (Ако вече не са инсталирани)
+
+    ```{r eval=FALSE, include=FALSE}
+    #install.packages("tidyverse")
+    ```
+
+2.  Зареждане на необходимите библиотеки
+
+    ```{r include=FALSE}
+    library(tidyverse)
+    library(corrplot)
+    library(ggplot2)
+    ```
+
+3.  Зареждане на данните
+
+    ```{r include=FALSE}
+    setwd("C:/Users/mihae/Downloads/archive (1)")
+    gbooks = read_csv("books.csv")
+
+    ```
+
+4.  Summary Statistics
+
+    ```{r echo=TRUE}
+    str(gbooks)
+    summary(gbooks)
+    head(gbooks)
+    View(gbooks)
+    ```
+
+5.  Добавяне на колона year (за улеснение)
+
+    ```{r include=FALSE}
+    gbooks$publication_date = as.Date(gbooks$publication_date, format="%m/%d/%Y")
+    gbooks$year = as.numeric(format(gbooks$publication_date, "%Y"))
+    head(gbooks[, c('publication_date', 'year')])
+    View(gbooks)
+    ```
+
+6.  Изчистване на данните (дали има na values)
+
+    ```{r include=FALSE}
+    missing_values = is.na(gbooks)
+    sum(missing_values) # Първо колко са липсващите данни
+    books = na.omit(gbooks) # Премахваме ги
+    sum(is.na(books)) # Проверка
+    missing_data_summary = sapply(books, function(x) sum(is.na(x)) / length(x)) * 100
+    print(missing_data_summary) # Проверка за всички колони
+    View(books)
+    ```
+
+7.  Дали някои от данните са нормално разпределени? Например средните оценки:
+
+    ```{r}
+    #shapiro_test =shapiro.test(books$average_rating)
+    #shapiro_test Пробвах с тест на Шапиро-Уилк, но се оказа, че извадката е твърде голяма
+
+    # Затова използвам тест на Колмогоров-Смирнов
+    mu_avg_rating = mean(books$average_rating)
+    sd_avg_rating = sd(books$average_rating)
+    ks= ks.test(books$average_rating, "pnorm", mean = mu_avg_rating,sd = sd_avg_rating) #Не (p-value < 2.2e-16)
+    ks
+
+    ```
+
+### Проучвателен анализ
+
+1.  Топ 10 на най-високо оценените книги
+
+    ```{r eval=FALSE, include=FALSE}
+    top_books = books %>% 
+      arrange(desc(average_rating)) %>% 
+      head(10)
+
+    top_books %>% 
+      ggplot(aes(
+        x = reorder(title, average_rating),
+        y = average_rating,
+        fill =as.factor(title)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            axis.text = element_text(size = 10)) +
+      coord_flip() +  ggtitle("Топ 10 на най-високо оценените книги")
+
+    ```
+
+    ![](Pics_Project_Statistics/Highest_Ranking_Books.JPG)
+
+2.  Топ 10 на най-ниско оценените книги (които не са с 0 звезди)
+
+    ```{r eval=FALSE, include=FALSE}
+    low_books = books %>%
+      filter(average_rating !=0) %>% 
+      arrange(average_rating) %>% 
+      head(10)
+
+    low_books %>% 
+      ggplot(aes(
+        x = reorder(title, average_rating),
+        y = average_rating,
+        fill = as.factor(title)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            axis.text = element_text(size = 10)) +
+      coord_flip() +  ggtitle("Топ 10 на най-ниско оценените книги")
+    ```
+
+    ![](Pics_Project_Statistics/Lowest_Ranking_Books.JPG)
+
+3.  Топ 10 на най-популярните книги
+
+    ```{r eval=FALSE, include=FALSE}
+    most_popular_books = books %>% 
+      mutate(popularity = ratings_count + text_reviews_count) %>% 
+      arrange(desc(popularity)) %>% 
+      head(10)
+
+    most_popular_books %>% 
+      ggplot(aes(
+        x = reorder(title, popularity),
+        y = popularity,
+        fill = as.factor(title)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            axis.text = element_text(size = 10)) +
+      coord_flip() +  
+      ggtitle("Топ 10 на най-популярните книги")
+    ```
+
+    ![](Pics_Project_Statistics/Most_popular_books.JPG)
+
+4.  Топ 10 на най-дългите книги
+
+    ```{r eval=FALSE, include=FALSE}
+    long_books = books %>% 
+      arrange(desc(num_pages)) %>% 
+      head(10)
+
+    long_books %>% 
+      ggplot(aes(
+        x = reorder(title, num_pages),
+        y = num_pages,
+        fill =as.factor(num_pages)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank()) +
+      coord_flip() +  ggtitle("Най-дългите книги") 
+    ```
+
+    ![](Pics_Project_Statistics/Longest_books.JPG)
+
+5.  Най-кратките книги
+
+    ```{r eval=FALSE, include=FALSE}
+    short_books = books %>%
+      filter( num_pages <= 5 ) %>% # Тези, които са по-къси от 5 страници
+      group_by(num_pages) %>%
+      sample_n(size = 3, replace = TRUE) %>% # И ги групирах по брой на страниците, така че да излязат по 3 резултата за {1,2,3,4,5}
+      ungroup() %>%
+      arrange(num_pages) 
+
+    short_books %>% 
+      ggplot(aes(
+        x = reorder(title, num_pages),
+        y = num_pages,
+        fill = as.factor(num_pages) 
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(
+        legend.position = "none",
+        axis.title.y = element_blank()) +
+      coord_flip() +  ggtitle("Най-кратките книги") 
+    ```
+
+![](Pics_Project_Statistics/Shortest_books.JPG)
+
+6.  Tоп 10 на книгите с най-много рецензии
+
+    ```{r eval=FALSE, include=FALSE}
+    most_reviewd = books %>% 
+      arrange(desc(text_reviews_count)) %>% 
+      head(10) 
+    most_reviewd %>% 
+      ggplot(aes(
+        x = reorder(title, text_reviews_count),
+        y = text_reviews_count,
+        fill = as.factor(text_reviews_count)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0.5)) + ggtitle("Tоп 10 на книгите с най-много рецензии") +
+      coord_flip()
+    ```
+
+![](Pics_Project_Statistics/clipboard-496441041.png)
+
+7.  Топ 10 на най-четените книги
+
+    ```{r eval=FALSE, include=FALSE}
+    most_read_books = books %>% 
+      arrange(desc(ratings_count)) %>% 
+      head(10)
+
+    most_read_books %>% 
+      ggplot(aes(
+        x = reorder(title, ratings_count),
+        y = ratings_count,
+        fill = as.factor(title)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            axis.text = element_text(size = 10)) +
+      coord_flip() +  
+      ggtitle("Tоп 10 най-четените книги")
+    ```
+
+![](Pics_Project_Statistics/clipboard-3272238560.png)
+
+8.  Най-често срещаният език
+
+    ```{r eval=FALSE, include=FALSE}
+    language = books %>%
+      group_by(language_code) %>%
+      summarise(count = n()) %>%
+      arrange(desc(count)) %>%
+      head(10)
+
+    language%>%
+      ggplot(aes(
+        x = reorder(language_code, -count),
+        y = count,
+        fill = as.factor(count)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(), 
+            plot.title = element_text(hjust = 0.5)) + ggtitle("Най-често срещаният език")
+    ```
+
+![](Pics_Project_Statistics/clipboard-2016189173.png)
+
+9.  Средната оценка по език
+
+    ```{r eval=FALSE, include=FALSE}
+    avg_rating_by_language = books %>%
+      group_by(language_code) %>%
+      summarise(avg_rating = mean(average_rating, na.rm = TRUE)) %>%
+      arrange(desc(avg_rating))
+
+    avg_rating_by_language %>% 
+      ggplot(aes(
+        x = reorder(language_code, avg_rating),
+        y = avg_rating,
+        fill = as.factor(language_code)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title.x = element_text(size = 10),
+            axis.title.y = element_blank(),
+            axis.text = element_text(size = 10),
+            plot.title = element_text(hjust = 0.5)) + 
+      ggtitle("Средната оценка по език") +
+      coord_flip()
+    ```
+
+    ![](Pics_Project_Statistics/clipboard-2911263637.png)
+
+10. Топ 10 езика с най-дългите книги
+
+    ```{r eval=FALSE, include=FALSE}
+    language_pages = books %>%
+      group_by(language_code) %>%
+      summarise(avg_pages = mean(num_pages, na.rm = TRUE)) %>%
+      arrange(desc(avg_pages)) %>%
+      head(10)
+
+    language_pages %>%
+      ggplot(aes(
+        x = reorder(language_code, avg_pages),
+        y = avg_pages,
+        fill = as.factor(language_code)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(
+        legend.position = "none",
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_blank(),
+        axis.text = element_text(size = 10),
+        plot.title = element_text(hjust = 0.5)
+      ) +
+      ggtitle("Топ 10 езика с най-дългите книги") +
+      coord_flip()
+    ```
+
+    ![](Pics_Project_Statistics/clipboard-1711667307.png)
+
+11. Най-често срещаните издателства
+
+    ```{r include=FALSE}
+    publishers = books %>% 
+      group_by(publisher) %>% 
+      summarise(total_books = n()) %>% 
+      arrange(desc(total_books)) %>% 
+      head(10) 
+
+    publishers %>% 
+      ggplot(aes(
+        x = reorder(publisher, total_books),
+        y = total_books,
+        fill =as.factor(total_books)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0.5)) + ggtitle("Най-често срещаните издателства") +
+      coord_flip()
+    ```
+
+    ![](Pics_Project_Statistics/clipboard-3828957817.png)
+
+12. Авторите с най-голям брой публикувани книги
+
+    ```{r eval=FALSE, include=FALSE}
+    top_authors_books = books %>% 
+      group_by(authors) %>% 
+      summarise(total_books = n()) %>% 
+      arrange(desc(total_books)) %>% 
+      head(10) 
+
+    top_authors_books %>% 
+      ggplot(aes(
+        x = reorder(authors, total_books),
+        y = total_books,
+        fill =as.factor(total_books)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0.5)) + ggtitle("Топ 10 най-продуктивни автори") +
+      coord_flip()
+    ```
+
+    ![]()![](Pics_Project_Statistics/clipboard-2294573135.png)
+
+13. Топ 10 най-високо оценените автори
+
+    ```{r eval=FALSE, include=FALSE}
+    top_authors = books %>%
+      filter(average_rating >= 4.3) %>%
+      group_by(authors) %>%
+      summarise(
+        title_count = n(),
+        average_rating = mean(average_rating, na.rm = TRUE) 
+      ) %>%
+      arrange(desc(title_count)) %>%
+      head(10) 
+
+    top_authors %>%
+      ggplot(aes(
+        x = reorder(authors, title_count), 
+        y = title_count, 
+        fill = as.factor(title_count)
+      )) +
+      geom_col() +
+      coord_flip() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0.5)) +
+      ggtitle("Топ 10 най-високо оценените автори")  +
+      coord_flip()
+    ```
+
+    ![](Pics_Project_Statistics/Top_Rated_Authors.png)
+
+14. Топ 10 на авторите с най-много рецензии
+
+    ```{r eval=FALSE, include=FALSE}
+    top_authors_text_reviews = books %>% 
+      group_by(authors) %>% 
+      summarise(total_reviews = sum(text_reviews_count, na.rm = TRUE)) %>% 
+      arrange(desc(total_reviews)) %>% 
+      head(10)
+
+    top_authors_text_reviews %>% 
+      ggplot(aes(
+        x = reorder(authors, total_reviews),
+        y = total_reviews,
+        fill = as.factor(total_reviews)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0.5)) + 
+      ggtitle("Топ 10 на авторите с най-много рецензии") +
+      coord_flip()
+    ```
+
+    ![](Pics_Project_Statistics/clipboard-3454632108.png)
+
+15. Топ 10 на най-четените автори
+
+    ```{r eval=FALSE, include=FALSE}
+    top_authors_read_books = books %>% 
+      group_by(authors) %>% 
+      summarise(total_ratings = sum(ratings_count, na.rm = TRUE)) %>% 
+      arrange(desc(total_ratings)) %>% 
+      head(10)
+
+    top_authors_read_books %>% 
+      ggplot(aes(
+        x = reorder(authors, total_ratings),
+        y = total_ratings,
+        fill = as.factor(total_ratings)
+      )) +
+      geom_col() +
+      theme_minimal() +
+      theme(legend.position = "none",
+            axis.title = element_blank(),
+            plot.title = element_text(hjust = 0.5)) + 
+      ggtitle("Топ 10 на най-четените автори") +
+      coord_flip()
+    ```
+
+![](Pics_Project_Statistics/Most_read_Authors.png)
+
+### Разпределение на данните
+
+1.  Как са разпределени оценките?
+
+    ```{r eval=FALSE, include=FALSE}
+    ratings_distribution = books %>%
+      ggplot(aes(x = average_rating)) +
+      geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "cornflowerblue", color = "black", alpha = 0.6) +
+      geom_density(color = "orange", linewidth = 1) +
+      theme_minimal() +
+      theme(
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank()
+      ) +
+      labs(
+        title = "Разпределение на оценките",
+        x = "Average Rating",
+        y = "Count"
+      )
+    plot(ratings_distribution)
+    ```
+
+    ![](Pics_Project_Statistics/Distr1.png)
+
+2.  Как са разпределени страниците?
+
+    ```{r eval=FALSE, include=FALSE}
+    pages = books %>%
+      ggplot() +
+      aes(x = (num_pages)) +
+      geom_histogram(aes(y = after_stat(density)), bins = 50, fill = "cornflowerblue", color = "black", alpha = 0.6) +
+      geom_density(color = "orange", size = 1) +
+      theme_minimal() +
+      theme(
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank()
+      ) + labs( title = "Разпределение на страниците", x = "Number of Pages", y = "Count")
+    plot(pages)
+    ```
+
+![](Pics_Project_Statistics/Dist2.png)
+
+### Зависимости
+
+1.  Съществува ли зависимост между рецензиите и оценките?
+
+```{r echo=TRUE}
+ratings_reviews_corr = books %>%
+  ggplot(aes(x = ratings_count, y = text_reviews_count)) +
+  geom_point(alpha = 0.5, color = "cornflowerblue") + 
+  geom_smooth(formula = y ~ x,
+              method = lm, color = "orange") + 
+  theme_minimal() +
+  labs(
+    title = "Зависимост между броя на рецензиите и броя на оценките",
+    x = "Ratings Count",
+    y = "Text Reviews Count"
+  )
+plot(ratings_reviews_corr) # Да
+```
+
+![](Pics_Project_Statistics/Reviews_Ratings_Corr.JPG)
+
+2.  Съществува ли зависимост между рецензиите и средните оценките?
+
+```{r eval=FALSE, include=FALSE}
+avg_ratings_reviews_corr = books %>%
+  ggplot(aes(y = average_rating,
+             x = text_reviews_count)) +
+  geom_point(alpha = 0.5,color = "cornflowerblue") +
+  geom_smooth(formula = y ~ x,
+              method = lm, color = "orange") +
+  theme_minimal()+
+  labs(
+    title = "Зависимост между броя на рецензиите и средните оценките",
+    x = "Average Ratings",
+    y = "Text Reviews Count"
+  ) 
+plot(avg_ratings_reviews_corr) # Хи-квадрат тестът показва, че има зависимост
+```
+
+![](Pics_Project_Statistics/clipboard-4182955624.png)
+
+3.  Съществува ли зависимост между страниците и средните оценките?
+
+```{r eval=FALSE, include=FALSE}
+avg_ratings_num_pages_corr = books %>%
+  ggplot(aes(y = average_rating,
+             x = num_pages)) +
+  geom_point(alpha = 0.5,color = "cornflowerblue") +
+  geom_smooth(formula = y ~ x,
+              method = lm, color = "orange") +
+  theme_minimal()+
+  labs(
+    title = "Зависимост между броя на страниците и средните оценките",
+    x = "Average Ratings",
+    y = "Number of Pages"
+  ) 
+plot(avg_ratings_num_pages_corr) # Да
+```
+
+![](Pics_Project_Statistics/Num_Pages_Avg_Rating_Corr.JPG)
+
+4.  Съществува ли зависимост между оценките и страниците?
+
+```{r eval=FALSE, include=FALSE}
+ratings_count_num_pages_corr = books %>%
+  ggplot(aes(y = ratings_count,
+             x = num_pages)) +
+  geom_point(alpha = 0.5,color = "cornflowerblue") +
+  geom_smooth(formula = y ~ x,
+              method = lm, color = "orange") +
+  theme_minimal()+
+  labs(
+    title = "Зависимост между броя на страниците и броя на оценките",
+    y = "Ratings Count",
+    x = "Number of Pages"
+  ) 
+plot(ratings_count_num_pages_corr) # Не
+```
+
+![](Pics_Project_Statistics/Num_Pages_Ratings_Corr.png)
+
+5.  Съществува ли зависимост между средните оценки и езиците (Т.е дали средните на средните оценки се различават по език) (Използвам ANOVA - сравнявам средните стойности на една зависима променлива - average_rating в различни групи (езиците)
+
+```{r}
+anova_avg_language = aov(average_rating ~ language_code, data = books)
+summary(anova_avg_language)
+
+ggplot(books, aes(x = language_code, y = average_rating)) +
+  geom_boxplot(fill = "cornflowerblue", alpha = 0.7) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    title = "Разпределение на средните оценки по език",
+    x = "Language",
+    y = "Average Rating"
+  )
+# Пробвах и с Kruskal-Wallis тест (Това е сякаш по-добрият вариант, защото средните оценки не са нормално разпределени)
+kruskal_test_result = kruskal.test(average_rating ~ language_code, data = books)
+print(kruskal_test_result) # p-value е много малко, т.е. по-скоро се различават
+```
+
+![](Pics_Project_Statistics/Avg_Ratings_Lang.png)
+
+6.  Съществува ли зависимост между средните оценки и издателствата (Т.е дали средните на средните оценки се различават по издателство) (Използвам ANOVA - сравнявам средните стойности на една зависима променлива - average_rating в различни групи (издателствата )
+
+```{r}
+anova_publisher = aov(average_rating ~ publisher, data = books)
+summary(anova_publisher)
+
+ggplot(books %>% filter(publisher %in% publishers$publisher), aes(x = publisher, y = average_rating)) +
+  geom_boxplot(fill = "cornflowerblue", alpha = 0.7) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    title = "Разпределение на средните оценки по издателство",
+    x = "Publisher",
+    y = "Average Rating"
+  )
+```
+
+![](Pics_Project_Statistics/Avg_Rating_Publisher_Corr.png)
+
+### Тенденции
+
+1.  Как броят на оценките се променя през годините?
+
+```{r eval=FALSE, include=FALSE}
+rating_trend = books %>%
+  group_by(year) %>%
+  summarise(total_ratings = sum(ratings_count, na.rm = TRUE)) %>%
+  filter(!is.na(year))
+
+rating_trend %>%
+  ggplot(aes(x = year, y = total_ratings)) +
+  geom_line(color = "cornflowerblue", linewidth = 1) +
+  geom_point(color = "orange") +
+  theme_minimal() +
+  labs(
+    title = "Как броят на оценките се променя през годините?",
+    x = "Year",
+    y = "Total Ratings"
+  )
+```
+
+![](Pics_Project_Statistics/Ratings_Year.png)
+
+2.  Как броят на рецензиите се променя през годините?
+
+```{r eval=FALSE, include=FALSE}
+reviews_trend = books %>%
+  group_by(year) %>%
+  summarise(total_reviews = sum(text_reviews_count, na.rm = TRUE)) %>%
+  filter(!is.na(year))
+
+reviews_trend %>%
+  ggplot(aes(x = year, y = total_reviews)) +
+  geom_line(color = "cornflowerblue", linewidth = 1) +
+  geom_point(color = "orange") +
+  theme_minimal() +
+  labs(
+    title = "Как броят на оценките се променя през годините?",
+    x = "Year",
+    y = "Total Text Reviews"
+  )
+```
+
+![](Pics_Project_Statistics/Reviews_Year.png)
+
+### Тестване на хипотези
+
+1.  Дали средните оценки се различават много от средното?
+
+    ```{r echo=TRUE}
+    mu_avg_rating = mean(books$average_rating)
+    t_test_avg_rating = t.test(books$average_rating, mu = mu_avg_rating)
+    print(t_test_avg_rating) # Няма значима разлика
+    ```
+
+2.  Сравнение между средните оценки на два езика
+
+    ```{r echo=TRUE}
+    language1 = "eng" 
+    language2 = "fre" 
+    t_test_languages = t.test(books$average_rating[books$language_code == language1],
+                               books$average_rating[books$language_code == language2])
+    print(t_test_languages) #Няма значима разлика (p-value > 0.05), но оценките на английските книги са малко по-ниски от тези на френските (t<0)
+    ```
+
+3.  Сравнение на две десетилетия (Първоначалната ми идея беше да сравня началното десетилетие, за което имаме информация от данните (1900), с най-скорошното (2020), но имаме прекалено малко на брой екземпляри, за да се получи качествен тест.)
+
+    ```{r echo=TRUE}
+    books$decade = cut(books$year, breaks = seq(1950, 2020, by = 10), 
+                       labels = seq(1950, 2010, by = 10), include.lowest = TRUE) #Разделям на десетилетия
+    decade1 = "1960"  
+    decade2 = "2010"  
+    welch_t_test_result = t.test(books$average_rating[books$decade == decade1],
+                                  books$average_rating[books$decade == decade2],
+                                  var.equal = FALSE)
+    print(welch_t_test_result)  #Няма значима разлика (p-value > 0.05), но оценките на книгите от 1960 са малко по-високи от тези от 2010 (t<0). Т.е. читателите се отнасят еднакво към книгите, независимо от десетилетието, в което са написани.
+    ```
+
+4.  Зависимост между броя оценки и броя рецензии
+
+```{r echo=TRUE}
+books$text_reviews_category = cut(books$text_reviews_count, breaks = 
+                                    quantile(books$text_reviews_count, probs = c(0, 0.33, 0.67, 1)), include.lowest = TRUE, labels = c("Малък брой", "Среден брой", "Голям брой"))
+chi_square_test_ratings_reviews = chisq.test(table(books$ratings_count, books$text_reviews_category))
+print(chi_square_test_ratings_reviews) # Има зависимост (малко p-value) 
+```
+
+5.  Зависимост между средните оценки и броя рецензии
+
+```{r}
+chi_square_test_rating_reviews = chisq.test(table(books$average_rating, books$text_reviews_category))
+print(chi_square_test_rating_reviews) # Има зависимост (малко p-value) 
+```
+
+6.  Зависимост между броя страници и броя оценки
+
+```{r}
+chi_square_test_pages_ratings = chisq.test(table(books$num_pages, books$average_rating))
+print(chi_square_test_pages_ratings) # Има зависимост (малко p-value) 
+```
+
+7.  Зависимост между броя страници и броя рецензии
+
+```{r}
+chi_square_test_pages_reviews = chisq.test(table(books$num_pages, books$text_reviews_category))
+print(chi_square_test_pages_reviews) # Има зависимост (малко p-value) 
+```
+
+### Доверителен интервал за средните оценки
+
+```{r}
+ci_mean_rating = t.test(books$average_rating)$conf.int
+print(ci_mean_rating) #Средната оценка на книгите е межу 3.92 и 3.94, което е високо
+```
+
+### Линейна регресия
+
+1.  Линейна регресия между средните оценки и броя на оценките
+
+```{r}
+lm_avg_rating_vs_ratings_count = lm(average_rating ~ ratings_count, data = books)
+summary(lm_avg_rating_vs_ratings_count) # Не много силна зависимост
+```
+
+2.  Линейна регресия между средните оценки и броя на страниците
+
+```{r}
+lm_avg_rating_vs_num_pages = lm(average_rating ~ num_pages, data = books)
+summary(lm_avg_rating_vs_num_pages) # Не много силна зависимост
+```
+
+### Изводи
+
+1.  Най-популярните книги като цяло са поредицата "Хари Потър" на Дж. К. Роулинг, а най-популярната книга е "Здрач" на Стефани Майер. Тази книга е най-четената има и най-много. реценции
+2.  Повечето книги получават средни до високи оценки, като мнозинството от оценките са в диапазона 3-5. Тази тенденция предполага, че читателите са склонни да дават по-високи оценки на книгите, което може да се дължи на селективното четене на книги с по-добри отзиви или на цялостно позитивните нагласи на читателите.
+3.  Най-често срещаният език е английския, поради неговата универсалност. Но най-високи средни оценки имат книгите на латински.
+4.  Доминиращите в индустрията издателсва са американски.
+5.  Стивън Кинг е най-продуктивният автор, а Дж. Р. Р. Толкиен е най-високо оцененият автор. И двата извода не са изненадващи.
+6.  Повечето книги не надвишават 1000 страници. Всички книги с брой страници, който е повече от 1500 страници, имат средени оценки над 4. Всички книги с брой на оценките над 1 милион имат брой страници под 1000. Но не се наблюдава зависимост между броя на оценките и броя страници.
+7.  Всички книги с брой на оценките над 1 милион имат средени оценки над 3,5. Всички книги, на които броя на рецензиите е над 20 хиляди, също имат средни оценки над 3,5. Това предполага, че книгите, които получават по-високи оценки, също получават повече внимание и съответно повече ревюта.
+8.  Наблюдава се нарастваща тенденция в публикуването на книги през последните години на 20-ти век, което може да отразява увеличаването на броя на авторите и по-достъпните технологии за публикуване. С тях се увеличават и рецензиите.
+9.  Има разлика в средните оценки на книгите между различните езици. Това означава, че средните оценки се различават в зависимост от езика на книгите.
+10. Средните оценки на книгите се различават в зависимост от издателството.
